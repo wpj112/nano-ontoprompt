@@ -7,13 +7,15 @@ import StatusBadge from '@/components/StatusBadge'
 import InfoTab from './tabs/InfoTab'
 import FilesTab from './tabs/FilesTab'
 import EntitiesTab from './tabs/EntitiesTab'
+import OntologySpaceTab from './tabs/OntologySpaceTab'
 import LogicTab from './tabs/LogicTab'
 import ActionsTab from './tabs/ActionsTab'
 import CuratedDatasetsTab from './tabs/CuratedDatasetsTab'
+import TemplatesTab from './tabs/TemplatesTab'
 
 const GraphTab = lazy(() => import('./tabs/GraphTabV2'))
 
-type Tab = 'info' | 'graph' | 'entities' | 'logic' | 'actions' | 'files' | 'curated'
+type Tab = 'info' | 'graph' | 'ontology-space' | 'entities' | 'logic' | 'actions' | 'files' | 'curated' | 'templates'
 
 class GraphErrorBoundary extends React.Component<
   { children: React.ReactNode; fallbackLabel?: string },
@@ -66,9 +68,11 @@ export default function OntologyDetailPage() {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'info', label: t('ontology.tabs.info') },
     { key: 'graph', label: t('ontology.tabs.graph') },
+    { key: 'ontology-space', label: '本体空间' },
     { key: 'entities', label: t('ontology.tabs.entities') },
     { key: 'logic', label: t('ontology.tabs.logic') },
     { key: 'actions', label: t('ontology.tabs.actions') },
+    { key: 'templates', label: '类型模板' },
     isPipelineMode
       ? { key: 'curated', label: 'Curated 数据集' }
       : { key: 'files', label: t('ontology.tabs.files') },
@@ -110,9 +114,11 @@ export default function OntologyDetailPage() {
             </Suspense>
           </GraphErrorBoundary>
         )}
+        {activeTab === 'ontology-space' && <OntologySpaceTab ontologyId={id!} />}
         {activeTab === 'entities' && <EntitiesTab ontologyId={id!} />}
         {activeTab === 'logic' && <LogicTab ontologyId={id!} />}
         {activeTab === 'actions' && <ActionsTab ontologyId={id!} />}
+        {activeTab === 'templates' && <TemplatesTab ontologyId={id!} />}
       </div>
     </div>
   )

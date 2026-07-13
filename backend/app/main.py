@@ -24,6 +24,10 @@ from app.routers.v2 import curated as curated_v2
 from app.routers.v2 import mappings as mappings_v2
 from app.routers.v2 import incremental as incremental_v2
 from app.routers.v2 import logic_actions as logic_actions_v2
+from app.routers.v2 import object_types as object_types_v2
+from app.routers import skills
+from app.routers import intel_demo
+from app.routers import templates
 
 def _seed_db():
     from app.services.auth_service import seed_admin
@@ -33,10 +37,13 @@ def _seed_db():
     db = SessionLocal()
     try:
         # Import all models to ensure tables are created
-        from app.models import user, ontology, file, prompt, model_config, entity, logic as logic_model, action, relation, extraction_task, rules_config
+        from app.models import user, ontology, file, prompt, model_config, entity, logic as logic_model, action, relation, extraction_task, rules_config, entity_template  # noqa: F401
         from app.models.v2 import dataset as v2_dataset, pipeline as v2_pipeline, connection as v2_connection  # noqa: F401
         from app.models.v2.logic import OntologyLogicRule, OntologyStateMachine  # noqa: F401
         from app.models.v2.action import OntologyActionType, OntologyActionRun  # noqa: F401
+        from app.models.v2.object_type import ObjectType, ObjectInstance, Interface, LinkType, Link  # noqa: F401
+        from app.models.skill import Skill, SkillTrigger  # noqa: F401
+        from app.models.intel_snapshot import IntelSnapshot  # noqa: F401
         Base.metadata.create_all(bind=engine)
 
         # SQLite column migrations — create_all skips existing tables
@@ -55,6 +62,28 @@ def _seed_db():
                 "ALTER TABLE logic_rules ADD COLUMN status VARCHAR(20) DEFAULT 'draft'",
                 "ALTER TABLE actions ADD COLUMN enabled BOOLEAN DEFAULT 1",
                 "ALTER TABLE actions ADD COLUMN status VARCHAR(20) DEFAULT 'draft'",
+                # Phase 1 结构化提取: Action / LogicRule / Entity 新增字段
+                "ALTER TABLE entities ADD COLUMN property_schema JSON DEFAULT '{}'",
+                "ALTER TABLE actions ADD COLUMN submission_criteria JSON DEFAULT '[]'",
+                "ALTER TABLE actions ADD COLUMN target_entity_type VARCHAR(200)",
+                "ALTER TABLE actions ADD COLUMN needs_review BOOLEAN DEFAULT false",
+                "ALTER TABLE logic_rules ADD COLUMN conditions JSON DEFAULT '[]'",
+                "ALTER TABLE logic_rules ADD COLUMN needs_review BOOLEAN DEFAULT false",
+                # Phase 2: 新 object_types 体系外键
+                "ALTER TABLE actions ADD COLUMN target_object_type_id VARCHAR",
+                "ALTER TABLE logic_rules ADD COLUMN linked_object_type_ids JSON DEFAULT '[]'",
+                "ALTER TABLE extraction_tasks ADD COLUMN raw_output JSON",
+                "ALTER TABLE intel_snapshots ADD COLUMN IF NOT EXISTS created_entity_ids JSON DEFAULT '[]'",
+                "ALTER TABLE intel_snapshots ADD COLUMN IF NOT EXISTS created_relation_ids JSON DEFAULT '[]'",
+                "CREATE TABLE IF NOT EXISTS intel_snapshots ("
+                "id VARCHAR PRIMARY KEY, ontology_id VARCHAR NOT NULL REFERENCES ontology_projects(id) ON DELETE CASCADE,"
+                "label VARCHAR(50) NOT NULL, intel_text TEXT NOT NULL,"
+                "extraction_task_id VARCHAR REFERENCES extraction_tasks(id) ON DELETE SET NULL,"
+                "danger_score FLOAT DEFAULT 0.0, danger_level VARCHAR(20) DEFAULT 'low',"
+                "recommendations JSON DEFAULT '[]', entity_count INTEGER DEFAULT 0, relation_count INTEGER DEFAULT 0,"
+                "status VARCHAR(20) DEFAULT 'extracting',"
+                "created_at TIMESTAMP DEFAULT NOW()"
+                ")",
             ]:
                 try:
                     conn.execute(text(stmt))
@@ -126,12 +155,15 @@ app.include_router(overview.router, prefix="/api/v1/overview", tags=["overview"]
 app.include_router(ontologies.router, prefix="/api/v1/ontologies", tags=["ontologies"])
 app.include_router(files.router, prefix="/api/v1/ontologies/{ontology_id}/files", tags=["files"])
 app.include_router(entities.router, prefix="/api/v1/ontologies/{ontology_id}/entities", tags=["entities"])
+app.include_router(templates.router, prefix="/api/v1/ontologies/{ontology_id}/templates", tags=["templates"])
 app.include_router(logic.router, prefix="/api/v1/ontologies/{ontology_id}/logic", tags=["logic"])
 app.include_router(actions.router, prefix="/api/v1/ontologies/{ontology_id}/actions", tags=["actions"])
 app.include_router(extraction.router, prefix="/api/v1/ontologies/{ontology_id}/execute", tags=["extraction"])
 app.include_router(graph.router, prefix="/api/v1/ontologies/{ontology_id}/graph", tags=["graph"])
 app.include_router(export.router, prefix="/api/v1/ontologies/{ontology_id}/export", tags=["export"])
 app.include_router(prompts.router, prefix="/api/v1/prompts", tags=["prompts"])
+app.include_router(skills.router, prefix="/api/v2/skills", tags=["v2-skills"])
+app.include_router(intel_demo.router, prefix="/api/v2/intel-demo", tags=["v2-intel-demo"])
 app.include_router(models.router, prefix="/api/v1/models", tags=["models"])
 app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["settings"])
 app.include_router(connections_v2.router, prefix="/api/v2/connections", tags=["v2-connections"])
@@ -143,6 +175,7 @@ app.include_router(curated_v2.router, prefix="/api/v2/curated", tags=["v2-curate
 app.include_router(mappings_v2.router, prefix="/api/v2/ontologies", tags=["v2-mappings"])
 app.include_router(incremental_v2.router, prefix="/api/v2/incremental", tags=["v2-incremental"])
 app.include_router(logic_actions_v2.router, prefix="/api/v2/ontologies", tags=["v2-logic-actions"])
+app.include_router(object_types_v2.router, prefix="/api/v2/ontologies", tags=["v2-object-types"])
 
 def get_db():
     db = SessionLocal()
