@@ -109,6 +109,16 @@ def _read_bound_value(binding: ManualFieldBinding, object_key: str, db: Session)
     if not source:
         raise HTTPException(404, f"DataSource not found for binding {binding.property_name}")
 
+    # ── use TransformEngine when structured config is present ──
+    try:
+        from app.services.v2.transform import execute as engine_execute, TransformError
+        return engine_execute(binding, object_key, source)
+    except ImportError:
+        pass
+    except TransformError as exc:
+        raise HTTPException(400, f"Transform error [{binding.property_name}]: {exc}") from exc
+
+    # ── legacy fallback (no transform engine available) ──
     config = source.db_config or {}
     dialect = config.get("db_type") or "mysql"
     engine = create_engine(_connection_url(config), pool_pre_ping=True, connect_args={"connect_timeout": 10})
