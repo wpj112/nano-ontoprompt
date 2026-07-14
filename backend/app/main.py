@@ -55,6 +55,19 @@ def _seed_db():
 
         # SQLite column migrations — create_all skips existing tables
         with engine.connect() as conn:
+            def _run_ddl(stmt: str) -> None:
+                """Best-effort schema patching for older databases.
+
+                A failed DDL statement aborts the current PostgreSQL transaction, so we
+                must roll back before trying the next statement or the remaining
+                migrations will silently fail.
+                """
+                try:
+                    conn.execute(text(stmt))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+
             for stmt in [
                 "ALTER TABLE extraction_tasks ADD COLUMN validation_report TEXT",
                 "ALTER TABLE model_configs ADD COLUMN config_type VARCHAR(30) DEFAULT 'llm'",
@@ -95,11 +108,7 @@ def _seed_db():
                 "created_at TIMESTAMP DEFAULT NOW()"
                 ")",
             ]:
-                try:
-                    conn.execute(text(stmt))
-                    conn.commit()
-                except Exception:
-                    pass  # column already exists or sqlite limitation
+                _run_ddl(stmt)
 
         seed_admin(db)
 

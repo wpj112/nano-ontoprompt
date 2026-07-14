@@ -30,7 +30,7 @@ function createApiClient(baseURL: string): ApiClient {
       const status = err.response?.status
       const isLoginPath = window.location.pathname === '/login'
       const isAuthApi = err.config?.url?.includes('/auth/')
-      if (status === 401 && !isLoginPath && !isAuthApi) {
+      if ((status === 401 || status === 403) && !isLoginPath && !isAuthApi) {
         handleAuthExpired()
       }
       return Promise.reject(err.response?.data ?? err)
