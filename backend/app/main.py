@@ -130,6 +130,17 @@ def _seed_db():
                                    rule_label_cn=label_cn, rule_label_en=label_en))
             db.commit()
 
+        # Seed / update snapshot interval rule
+        existing = db.query(RulesConfig).filter(RulesConfig.rule_key == "db_snapshot_interval_hours").first()
+        if not existing:
+            db.add(RulesConfig(id=str(uuid.uuid4()),
+                               rule_key="db_snapshot_interval_hours",
+                               rule_value="1",
+                               rule_label_cn="自动快照间隔(小时)",
+                               rule_label_en="Auto snapshot interval (hours)",
+                               editable=True))
+            db.commit()
+
         # Seed / update builtin prompts (upsert by name)
         from app.models.prompt import Prompt
         from app.models.user import User
@@ -149,21 +160,32 @@ def _seed_db():
         db.close()
 
 async def _auto_snapshot_loop():
-    interval_hours = settings.db_snapshot_interval_hours
-    if interval_hours <= 0:
-        print(f"[auto-snapshot] Disabled (db_snapshot_interval_hours={interval_hours})")
-        return
+    from app.services.db_snapshot_service import DatabaseSnapshotService
+    from app.models.rules_config import RulesConfig
+
     await asyncio.sleep(30)
-    print(f"[auto-snapshot] Started, interval={interval_hours}h")
     while True:
-        await asyncio.sleep(interval_hours * 3600)
         try:
-            from app.services.db_snapshot_service import DatabaseSnapshotService
+            db = SessionLocal()
+            rule = db.query(RulesConfig).filter(RulesConfig.rule_key == "db_snapshot_interval_hours").first()
+            db.close()
+            interval_hours = float(rule.rule_value) if rule else 1.0
+        except Exception:
+            interval_hours = 1.0
+        if interval_hours <= 0:
+            print(f"[auto-snapshot] Disabled (interval={interval_hours}h)")
+            await asyncio.sleep(60)
+            continue
+
+        print(f"[auto-snapshot] Interval={interval_hours}h, creating snapshot...")
+        try:
             svc = DatabaseSnapshotService()
             info = svc.create_snapshot(label="auto")
             print(f"[auto-snapshot] Created: {info.name} ({info.size} bytes)")
         except Exception as e:
             print(f"[auto-snapshot] Failed: {e}")
+
+        await asyncio.sleep(interval_hours * 3600)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

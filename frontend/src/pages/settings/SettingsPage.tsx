@@ -32,6 +32,8 @@ export default function SettingsPage() {
   const [promptMsg, setPromptMsg] = useState('')
   const [snapshotLabel, setSnapshotLabel] = useState('')
   const [snapshotMsg, setSnapshotMsg] = useState('')
+  const [snapshotInterval, setSnapshotInterval] = useState('1')
+  const [intervalMsg, setIntervalMsg] = useState('')
   const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null)
   const [promptName, setPromptName] = useState('')
   const [promptDomain, setPromptDomain] = useState('通用')
@@ -57,6 +59,17 @@ export default function SettingsPage() {
   const { data: snapshots = [], isLoading: snapshotsLoading } = useQuery({
     queryKey: ['settings-snapshots'],
     queryFn: () => settingsApi.listSnapshots() as any,
+    enabled: activeTab === 'snapshots',
+  })
+
+  useQuery({
+    queryKey: ['settings-snapshot-interval'],
+    queryFn: async () => {
+      const rules = await settingsApi.getRules() as any[]
+      const rule = rules.find((r: any) => r.rule_key === 'db_snapshot_interval_hours')
+      if (rule) setSnapshotInterval(rule.rule_value)
+      return rules
+    },
     enabled: activeTab === 'snapshots',
   })
 
@@ -92,6 +105,16 @@ export default function SettingsPage() {
       qc.invalidateQueries({ queryKey: ['settings-snapshots'] })
     },
     onError: (e: any) => setSnapshotMsg(`删除失败: ${e?.detail || ''}`),
+  })
+
+  const updateIntervalMut = useMutation({
+    mutationFn: (hours: string) =>
+      settingsApi.updateRules([{ rule_key: 'db_snapshot_interval_hours', rule_value: hours }]),
+    onSuccess: () => {
+      setIntervalMsg('已保存')
+      setTimeout(() => setIntervalMsg(''), 3000)
+    },
+    onError: (e: any) => setIntervalMsg(`保存失败: ${e?.detail || ''}`),
   })
 
   const updateMut = useMutation({
@@ -261,6 +284,31 @@ export default function SettingsPage() {
             </div>
             {snapshotMsg && (
               <p className={`text-xs mt-3 ${snapshotMsg.includes('失败') ? 'text-red-500' : 'text-green-600'}`}>{snapshotMsg}</p>
+            )}
+          </div>
+
+          <div className="bg-white border rounded-lg p-6">
+            <h3 className="text-sm font-semibold mb-1">自动快照配置</h3>
+            <p className="text-xs text-gray-500 mb-3">每隔 N 小时自动创建数据库快照，设为 0 关闭自动快照。</p>
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-gray-600">间隔（小时）：</label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={snapshotInterval}
+                onChange={e => setSnapshotInterval(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm w-24"
+              />
+              <button
+                onClick={() => updateIntervalMut.mutate(snapshotInterval)}
+                disabled={updateIntervalMut.isPending}
+                className="px-4 py-2 bg-black text-white rounded-lg text-sm disabled:opacity-50">
+                {updateIntervalMut.isPending ? '保存中...' : '保存'}
+              </button>
+            </div>
+            {intervalMsg && (
+              <p className={`text-xs mt-2 ${intervalMsg.includes('失败') ? 'text-red-500' : 'text-green-600'}`}>{intervalMsg}</p>
             )}
           </div>
 
