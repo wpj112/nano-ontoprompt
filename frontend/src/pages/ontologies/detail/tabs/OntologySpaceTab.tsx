@@ -60,7 +60,7 @@ export default function OntologySpaceTab({ ontologyId }: { ontologyId: string })
     allTypes.forEach(t => {
       const pid = (t as any).parent_id
       if (pid && nodes[pid]) { nodes[pid].children.unshift(nodes[t.id]); nodes[t.id].depth = nodes[pid].depth + 1 }
-      else if (!nodes[t.id]._placed) { roots.push(nodes[t.id]); (nodes[t.id] as any)._placed = true }
+      else if (!(nodes[t.id] as any)._placed) { roots.push(nodes[t.id]); (nodes[t.id] as any)._placed = true }
     })
     // dedupe: if a node was added as child, don't also show as root
     const seen = new Set<string>()
@@ -143,8 +143,9 @@ export default function OntologySpaceTab({ ontologyId }: { ontologyId: string })
                       return (<span className="flex-1 py-2.5 pr-2 truncate text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                         onClick={(e: any) => { e.stopPropagation(); navigate(`/ontologies/${ontologyId}/types/${node.id}`) }}>{node.name_cn}</span>)
                     } else if (node.instance) {
+                      const inst = node.instance
                       return (<span className="flex-1 py-2.5 pr-2 truncate text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                        onClick={(e: any) => { e.stopPropagation(); navigate(`/ontologies/${ontologyId}/types/${node.instance.object_type_id}/instances/${node.id}`) }}>{node.name_cn}</span>)
+                        onClick={(e: any) => { e.stopPropagation(); navigate(`/ontologies/${ontologyId}/types/${inst.object_type_id}/instances/${node.id}`) }}>{node.name_cn}</span>)
                     } else {
                       return (<span className="flex-1 py-2.5 pr-2 truncate text-sm text-gray-700">{node.name_cn}</span>)
                     }

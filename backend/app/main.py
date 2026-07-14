@@ -30,6 +30,8 @@ from app.routers.v2 import object_rules as object_rules_v2
 from app.routers.v2 import object_actions as object_actions_v2
 from app.routers.v2 import database_explorer
 from app.routers.v2 import data_sources as data_sources_v2
+from app.routers.v2 import manual as manual_v2
+from app.routers.v2 import runtime as runtime_v2
 from app.routers import skills
 from app.routers import intel_demo
 from app.routers import templates
@@ -48,6 +50,7 @@ def _seed_db():
         from app.models.v2.action import OntologyActionType, OntologyActionRun  # noqa: F401
         from app.models.v2.object_type import ObjectType, ObjectInstance, Interface, LinkType, Link  # noqa: F401
         from app.models.v2.data_source import DataSource  # noqa: F401
+        from app.models.v2.manual_binding import ManualFieldBinding  # noqa: F401
         from app.models.object_rule import ObjectRule  # noqa: F401
         from app.models.object_action import ObjectAction  # noqa: F401
         from app.models.skill import Skill, SkillTrigger  # noqa: F401
@@ -99,6 +102,17 @@ def _seed_db():
                 "ALTER TABLE extraction_tasks ADD COLUMN raw_output JSON",
                 "ALTER TABLE intel_snapshots ADD COLUMN IF NOT EXISTS created_entity_ids JSON DEFAULT '[]'",
                 "ALTER TABLE intel_snapshots ADD COLUMN IF NOT EXISTS created_relation_ids JSON DEFAULT '[]'",
+                "CREATE TABLE IF NOT EXISTS manual_field_bindings ("
+                "id VARCHAR PRIMARY KEY, "
+                "ontology_id VARCHAR NOT NULL REFERENCES ontology_projects(id) ON DELETE CASCADE, "
+                "object_type_id VARCHAR(200) NOT NULL, "
+                "property_name VARCHAR(200) NOT NULL, "
+                "data_source_id VARCHAR REFERENCES data_sources(id) ON DELETE SET NULL, "
+                "schema_name VARCHAR(200), table_name VARCHAR(200) NOT NULL, column_name VARCHAR(200) NOT NULL, "
+                "primary_key_column VARCHAR(200), value_type VARCHAR(50) DEFAULT 'string', direction VARCHAR(20) DEFAULT 'read', "
+                "transform_expression TEXT, is_required BOOLEAN DEFAULT false, read_only BOOLEAN DEFAULT true, "
+                "created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()"
+                ")",
                 "CREATE TABLE IF NOT EXISTS intel_snapshots ("
                 "id VARCHAR PRIMARY KEY, ontology_id VARCHAR NOT NULL REFERENCES ontology_projects(id) ON DELETE CASCADE,"
                 "label VARCHAR(50) NOT NULL, intel_text TEXT NOT NULL,"
@@ -244,6 +258,8 @@ app.include_router(object_rules_v2.router, prefix="/api/v2/ontologies", tags=["v
 app.include_router(object_actions_v2.router, prefix="/api/v2/ontologies", tags=["v2-object-actions"])
 app.include_router(database_explorer.router, prefix="/api/v2", tags=["v2-database"])
 app.include_router(data_sources_v2.router, prefix="/api/v2/ontologies", tags=["v2-data-sources"])
+app.include_router(manual_v2.router, prefix="/api/v2/manual", tags=["v2-manual-runtime-authoring"])
+app.include_router(runtime_v2.router, prefix="/api/v2/runtime", tags=["v2-runtime-api"])
 
 def get_db():
     db = SessionLocal()

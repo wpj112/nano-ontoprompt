@@ -68,14 +68,14 @@ export const ontologyApi = {
 
   // Object Rules
   listRules: (oid: string, params?: { object_type_id?: string; object_instance_id?: string }) =>
-    apiClientV2.get<{data: any[]}>(`/ontologies/${oid}/rules`, params),
+    apiClientV2.get<{data: any[]}>(`/ontologies/${oid}/rules`, params ? { params } : undefined),
   createRule: (oid: string, body: any) => apiClientV2.post(`/ontologies/${oid}/rules`, body),
   updateRule: (oid: string, rid: string, body: any) => apiClientV2.put(`/ontologies/${oid}/rules/${rid}`, body),
   deleteRule: (oid: string, rid: string) => apiClientV2.delete(`/ontologies/${oid}/rules/${rid}`),
 
   // Object Actions (Phase 2)
   listActionsV2: (oid: string, params?: { object_type_id?: string; object_instance_id?: string; object_rule_id?: string }) =>
-    apiClientV2.get<{data: any[]}>(`/ontologies/${oid}/actions-v2`, params),
+    apiClientV2.get<{data: any[]}>(`/ontologies/${oid}/actions-v2`, params ? { params } : undefined),
   createActionV2: (oid: string, body: any) => apiClientV2.post(`/ontologies/${oid}/actions-v2`, body),
   updateActionV2: (oid: string, aid: string, body: any) => apiClientV2.put(`/ontologies/${oid}/actions-v2/${aid}`, body),
   deleteActionV2: (oid: string, aid: string) => apiClientV2.delete(`/ontologies/${oid}/actions-v2/${aid}`),
@@ -91,8 +91,22 @@ export const ontologyApi = {
   deleteLink: (oid: string, lid: string) => apiClientV2.delete(`/ontologies/${oid}/links/${lid}`),
   triggerRules: (oid: string, instId: string) => apiClientV2.post(`/ontologies/${oid}/instances/${instId}/trigger-rules`),
   confirmLinks: (oid: string, links: any[]) => apiClientV2.post(`/ontologies/${oid}/confirm-links`, { links }),
+
+  listFieldBindings: (oid: string, params?: { object_type_id?: string }) =>
+    apiClientV2.get(`/manual/ontologies/${oid}/field-bindings`, params ? { params } : undefined),
+  createFieldBinding: (oid: string, body: any) => apiClientV2.post(`/manual/ontologies/${oid}/field-bindings`, body),
+  updateFieldBinding: (oid: string, bindingId: string, body: any) => apiClientV2.put(`/manual/ontologies/${oid}/field-bindings/${bindingId}`, body),
+  deleteFieldBinding: (oid: string, bindingId: string) => apiClientV2.delete(`/manual/ontologies/${oid}/field-bindings/${bindingId}`),
+  getRuntimeMetadata: (oid: string) => apiClientV2.get(`/runtime/ontologies/${oid}/metadata`),
+  getRuntimeObject: (oid: string, typeKey: string, objectKey: string) => apiClientV2.get(`/runtime/ontologies/${oid}/objects/${encodeURIComponent(typeKey)}/${encodeURIComponent(objectKey)}`),
   listDataSources: (oid: string) => apiClientV2.get(`/ontologies/${oid}/data-sources`),
   createDataSource: (oid: string, body: any) => apiClientV2.post(`/ontologies/${oid}/data-sources`, body),
+  updateDataSource: (oid: string, sid: string, body: any) => apiClientV2.put(`/ontologies/${oid}/data-sources/${sid}`, body),
+  testDataSource: (oid: string, sid: string) => apiClientV2.post(`/ontologies/${oid}/data-sources/${sid}/test`),
+  listDataSourceTables: (oid: string, sid: string, schemaName?: string) =>
+    apiClientV2.get(`/ontologies/${oid}/data-sources/${sid}/tables`, schemaName ? { params: { schema_name: schemaName } } : undefined),
+  listDataSourceColumns: (oid: string, sid: string, tableName: string, schemaName?: string) =>
+    apiClientV2.get(`/ontologies/${oid}/data-sources/${sid}/columns`, { params: { table_name: tableName, ...(schemaName ? { schema_name: schemaName } : {}) } }),
   deleteDataSource: (oid: string, sid: string) => apiClientV2.delete(`/ontologies/${oid}/data-sources/${sid}`),
 }
 
