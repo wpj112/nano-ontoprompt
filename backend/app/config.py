@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     uploads_dir: str = "./uploads"
     access_token_expire_minutes: int = 1440  # 24h
     db_snapshot_dir: str = "./snapshots"
+    db_snapshot_interval_hours: int = 1  # 0 = disable auto-snapshot
 
     # 上传限制
     max_upload_mb: int = 200

@@ -7,6 +7,7 @@ v1 兼容：/api/v1/* 路由全部保留
 
 启动：uvicorn app.main:app --host 0.0.0.0 --port 8000
 """
+import asyncio
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -147,16 +148,38 @@ def _seed_db():
     finally:
         db.close()
 
+async def _auto_snapshot_loop():
+    interval_hours = settings.db_snapshot_interval_hours
+    if interval_hours <= 0:
+        print(f"[auto-snapshot] Disabled (db_snapshot_interval_hours={interval_hours})")
+        return
+    await asyncio.sleep(30)
+    print(f"[auto-snapshot] Started, interval={interval_hours}h")
+    while True:
+        await asyncio.sleep(interval_hours * 3600)
+        try:
+            from app.services.db_snapshot_service import DatabaseSnapshotService
+            svc = DatabaseSnapshotService()
+            info = svc.create_snapshot(label="auto")
+            print(f"[auto-snapshot] Created: {info.name} ({info.size} bytes)")
+        except Exception as e:
+            print(f"[auto-snapshot] Failed: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_db()
-    # 初始化 Neo4j 索引（后台执行，不阻塞启动）
     try:
         from app.services.v2.graph.index_setup import setup_indexes
         setup_indexes()
     except Exception:
-        pass  # Neo4j 不可用时不影响启动
+        pass
+    task = asyncio.create_task(_auto_snapshot_loop())
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 app = FastAPI(title="OntoPrompt API", version="0.1.0", lifespan=lifespan)
 
