@@ -31,6 +31,50 @@ def _qualified_table(schema_name: str | None, table_name: str, dialect: str) -> 
     return t
 
 
+
+def _extra_where(where: list[dict[str, Any]] | dict[str, Any] | None, dialect: str, params: dict[str, Any]) -> str:
+    if not where:
+        return ""
+    items: list[dict[str, Any]]
+    if isinstance(where, dict):
+        items = [{"column": k, "op": "eq", "value": v} for k, v in where.items()]
+    else:
+        items = where
+    clauses: list[str] = []
+    for i, item in enumerate(items):
+        col = item.get("column")
+        if not col:
+            raise SelectError("where item requires 'column'")
+        op = item.get("op", "eq")
+        key = f"w{i}"
+        quoted = _quote(str(col), dialect)
+        if op == "eq":
+            clauses.append(f"{quoted} = :{key}")
+            params[key] = item.get("value")
+        elif op == "neq":
+            clauses.append(f"{quoted} <> :{key}")
+            params[key] = item.get("value")
+        elif op in {"gt", "gte", "lt", "lte"}:
+            symbol = {"gt": ">", "gte": ">=", "lt": "<", "lte": "<="}[op]
+            clauses.append(f"{quoted} {symbol} :{key}")
+            params[key] = item.get("value")
+        elif op == "like":
+            clauses.append(f"{quoted} LIKE :{key}")
+            params[key] = item.get("value")
+        elif op == "in":
+            vals = item.get("value") or []
+            if not isinstance(vals, list) or not vals:
+                raise SelectError("where op=in requires non-empty list value")
+            placeholders = []
+            for j, val in enumerate(vals):
+                in_key = f"{key}_{j}"
+                placeholders.append(f":{in_key}")
+                params[in_key] = val
+            clauses.append(f"{quoted} IN ({', '.join(placeholders)})")
+        else:
+            raise SelectError(f"Unsupported where op: {op!r}")
+    return " AND " + " AND ".join(clauses)
+
 def build_sql(
     *,
     mode: str,
@@ -44,6 +88,7 @@ def build_sql(
     table_name: str = "",
     pk_column: str = "",
     limit_rows: int | None = None,
+    where: list[dict[str, Any]] | dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Return ``(parameterised_sql, bind_params)`` for a selection mode.
 
@@ -80,17 +125,18 @@ def build_sql(
     """
     table = _qualified_table(schema_name, table_name, dialect)
     params: dict[str, Any] = {"pk": ""}  # placeholder – caller fills this
+    extra = _extra_where(where, dialect, params)
 
     if mode == "value":
         if not column:
             raise SelectError("mode=value requires 'column'")
-        sql = f"SELECT {_quote(column, dialect)} AS value FROM {table} WHERE {_quote(pk_column, dialect)} = :pk LIMIT 1"
+        sql = f"SELECT {_quote(column, dialect)} AS value FROM {table} WHERE {_quote(pk_column, dialect)} = :pk{extra} LIMIT 1"
 
     elif mode == "columns":
         if not columns:
             raise SelectError("mode=columns requires 'columns'")
         quoted = [_quote(c, dialect) for c in columns]
-        sql = f"SELECT {', '.join(quoted)} FROM {table} WHERE {_quote(pk_column, dialect)} = :pk LIMIT 1"
+        sql = f"SELECT {', '.join(quoted)} FROM {table} WHERE {_quote(pk_column, dialect)} = :pk{extra} LIMIT 1"
 
     elif mode == "aggregate":
         if not op or op not in _AGGREGATES:
@@ -98,7 +144,7 @@ def build_sql(
         col = column or "*"
         if col != "*":
             col = _quote(col, dialect)
-        sql = f"SELECT {op.upper()}({col}) AS value FROM {table} WHERE {_quote(pk_column, dialect)} LIKE :pk"
+        sql = f"SELECT {op.upper()}({col}) AS value FROM {table} WHERE {_quote(pk_column, dialect)} LIKE :pk{extra}"
 
     elif mode in ("latest", "earliest"):
         if not value_column:
@@ -114,14 +160,14 @@ def build_sql(
             limit = f" LIMIT {int(limit_rows)}"
         sql = (
             f"SELECT {vc} AS value FROM {table}"
-            f" WHERE {pk} LIKE :pk"
+            f" WHERE {pk} LIKE :pk{extra}"
             f" ORDER BY {ob} {direction}"
             f"{limit} LIMIT 1"
         )
 
     elif mode == "count":
         col = _quote(column, dialect) if column else "*"
-        sql = f"SELECT COUNT({col}) AS value FROM {table} WHERE {_quote(pk_column, dialect)} LIKE :pk"
+        sql = f"SELECT COUNT({col}) AS value FROM {table} WHERE {_quote(pk_column, dialect)} LIKE :pk{extra}"
 
     else:
         raise SelectError(f"Unknown select mode: {mode!r}")

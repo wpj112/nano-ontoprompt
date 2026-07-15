@@ -16,6 +16,7 @@ export type DetailTab =
   | 'files'
   | 'database'
   | 'data-sources'
+  | 'link-bindings'
   | 'curated'
   | 'templates'
   | 'runtime-api'

@@ -97,6 +97,11 @@ export const ontologyApi = {
   createFieldBinding: (oid: string, body: any) => apiClientV2.post(`/manual/ontologies/${oid}/field-bindings`, body),
   updateFieldBinding: (oid: string, bindingId: string, body: any) => apiClientV2.put(`/manual/ontologies/${oid}/field-bindings/${bindingId}`, body),
   deleteFieldBinding: (oid: string, bindingId: string) => apiClientV2.delete(`/manual/ontologies/${oid}/field-bindings/${bindingId}`),
+  listLinkBindings: (oid: string, params?: { link_type_id?: string }) =>
+    apiClientV2.get(`/manual/ontologies/${oid}/link-bindings`, params ? { params } : undefined),
+  createLinkBinding: (oid: string, body: any) => apiClientV2.post(`/manual/ontologies/${oid}/link-bindings`, body),
+  updateLinkBinding: (oid: string, bindingId: string, body: any) => apiClientV2.put(`/manual/ontologies/${oid}/link-bindings/${bindingId}`, body),
+  deleteLinkBinding: (oid: string, bindingId: string) => apiClientV2.delete(`/manual/ontologies/${oid}/link-bindings/${bindingId}`),
   getRuntimeMetadata: (oid: string) => apiClientV2.get(`/runtime/ontologies/${oid}/metadata`),
   getRuntimeObject: (oid: string, typeKey: string, objectKey: string) => apiClientV2.get(`/runtime/ontologies/${oid}/objects/${encodeURIComponent(typeKey)}/${encodeURIComponent(objectKey)}`),
   listDataSources: (oid: string) => apiClientV2.get(`/ontologies/${oid}/data-sources`),

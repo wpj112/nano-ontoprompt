@@ -128,6 +128,7 @@ def execute(
         table_name=binding.table_name,
         pk_column=binding.primary_key_column or "",
         limit_rows=select_cfg.get("limit"),
+        where=select_cfg.get("where"),
     )
     # LIKE for aggregate/count modes, exact match for value/columns
     if mode in ("value", "columns"):
@@ -183,6 +184,7 @@ def _legacy_read(
         schema_name=binding.schema_name,
         table_name=binding.table_name,
         pk_column=binding.primary_key_column or "",
+        where={},
     )
     params["pk"] = object_key
 

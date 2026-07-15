@@ -50,7 +50,7 @@ def _seed_db():
         from app.models.v2.action import OntologyActionType, OntologyActionRun  # noqa: F401
         from app.models.v2.object_type import ObjectType, ObjectInstance, Interface, LinkType, Link  # noqa: F401
         from app.models.v2.data_source import DataSource  # noqa: F401
-        from app.models.v2.manual_binding import ManualFieldBinding  # noqa: F401
+        from app.models.v2.manual_binding import ManualFieldBinding, ManualLinkBinding, ManualOrchestrationRun, ManualRuntimeActionRun  # noqa: F401
         from app.models.object_rule import ObjectRule  # noqa: F401
         from app.models.object_action import ObjectAction  # noqa: F401
         from app.models.skill import Skill, SkillTrigger  # noqa: F401
@@ -113,6 +113,44 @@ def _seed_db():
                 "transform_expression TEXT, is_required BOOLEAN DEFAULT false, read_only BOOLEAN DEFAULT true, "
                 "created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()"
                 ")",
+                "CREATE TABLE IF NOT EXISTS manual_link_bindings ("
+                "id VARCHAR PRIMARY KEY, "
+                "ontology_id VARCHAR NOT NULL REFERENCES ontology_projects(id) ON DELETE CASCADE, "
+                "link_type_id VARCHAR(200) NOT NULL, "
+                "data_source_id VARCHAR REFERENCES data_sources(id) ON DELETE SET NULL, "
+                "schema_name VARCHAR(200), table_name VARCHAR(200) NOT NULL, "
+                "source_object_type_id VARCHAR(200) NOT NULL, source_key_column VARCHAR(200) NOT NULL, "
+                "target_object_type_id VARCHAR(200) NOT NULL, target_key_column VARCHAR(200) NOT NULL, "
+                "direction VARCHAR(20) DEFAULT 'out', relation_filters JSON DEFAULT '{}', property_bindings JSON DEFAULT '{}', "
+                "transform_expression TEXT, is_active BOOLEAN DEFAULT true, "
+                "created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()"
+                ")",
+                "CREATE TABLE IF NOT EXISTS manual_orchestration_runs ("
+                "id VARCHAR PRIMARY KEY, "
+                "ontology_id VARCHAR NOT NULL REFERENCES ontology_projects(id) ON DELETE CASCADE, "
+                "external_run_id VARCHAR(200), agent_key VARCHAR(200), status VARCHAR(30) DEFAULT 'running', "
+                "input_context JSON DEFAULT '{}', result_summary JSON DEFAULT '{}', error TEXT, "
+                "started_at TIMESTAMP DEFAULT NOW(), completed_at TIMESTAMP"
+                ")",
+                "CREATE INDEX IF NOT EXISTS ix_manual_orchestration_runs_ontology ON manual_orchestration_runs(ontology_id)",
+                "ALTER TABLE manual_runtime_action_runs ADD COLUMN IF NOT EXISTS orchestration_run_id VARCHAR(200)",
+                "CREATE TABLE IF NOT EXISTS manual_runtime_action_runs ("
+                "id VARCHAR PRIMARY KEY, "
+                "ontology_id VARCHAR NOT NULL REFERENCES ontology_projects(id) ON DELETE CASCADE, "
+                "action_key VARCHAR(200) NOT NULL, orchestration_run_id VARCHAR(200), "
+                "idempotency_key VARCHAR(200), status VARCHAR(30) DEFAULT 'running', "
+                "request_payload JSON DEFAULT '{}', result_payload JSON DEFAULT '{}', error TEXT, "
+                "started_at TIMESTAMP DEFAULT NOW(), completed_at TIMESTAMP"
+                ")",
+                "CREATE INDEX IF NOT EXISTS ix_manual_runtime_action_runs_orchestration "
+                "ON manual_runtime_action_runs(ontology_id, orchestration_run_id)",
+                "DROP INDEX IF EXISTS ux_manual_runtime_action_runs_idem",
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_manual_runtime_action_runs_idem_global "
+                "ON manual_runtime_action_runs(ontology_id, idempotency_key) "
+                "WHERE idempotency_key IS NOT NULL AND orchestration_run_id IS NULL",
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_manual_runtime_action_runs_idem_orch "
+                "ON manual_runtime_action_runs(ontology_id, orchestration_run_id, idempotency_key) "
+                "WHERE idempotency_key IS NOT NULL AND orchestration_run_id IS NOT NULL",
                 "CREATE TABLE IF NOT EXISTS intel_snapshots ("
                 "id VARCHAR PRIMARY KEY, ontology_id VARCHAR NOT NULL REFERENCES ontology_projects(id) ON DELETE CASCADE,"
                 "label VARCHAR(50) NOT NULL, intel_text TEXT NOT NULL,"
