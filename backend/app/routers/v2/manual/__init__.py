@@ -15,7 +15,7 @@ from app.models.v2.data_source import DataSource
 from app.models.v2.manual_binding import ManualFieldBinding, ManualLinkBinding
 from app.models.v2.object_type import Link, LinkType, ObjectInstance, ObjectType
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter()
 
 
 class LinkBindingCreate(BaseModel):

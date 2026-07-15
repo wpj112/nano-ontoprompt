@@ -43,7 +43,7 @@ from app.services.v2.runtime import (
     RuntimeActionService,
 )
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter()
 
 
 # ── guards ──────────────────────────────────────────────────
@@ -387,7 +387,6 @@ def get_action_run(ontology_id: str, run_id: str, db: Session = Depends(get_db))
 # ── 7. Orchestration Runs ──────────────────────────────────
 
 class OrchestrationRunCreateRequest(BaseModel):
-    id: str | None = Field(None, description="optional caller-provided orchestration run id")
     external_run_id: str | None = Field(None, description="run id from the external orchestration system")
     agent_key: str | None = Field(None, description="agent/workflow identifier")
     input_context: dict[str, Any] = Field(default_factory=dict, description="initial orchestration context snapshot")
@@ -409,16 +408,8 @@ def create_orchestration_run(
     from uuid import uuid4
     from app.models.v2.manual_binding import ManualOrchestrationRun
 
-    run_id = body.id or str(uuid4())
-    existing = db.query(ManualOrchestrationRun).filter(
-        ManualOrchestrationRun.ontology_id == ontology_id,
-        ManualOrchestrationRun.id == run_id,
-    ).first()
-    if existing:
-        raise HTTPException(409, "Orchestration run already exists")
-
     run = ManualOrchestrationRun(
-        id=run_id,
+        id=str(uuid4()),
         ontology_id=ontology_id,
         external_run_id=body.external_run_id,
         agent_key=body.agent_key,
